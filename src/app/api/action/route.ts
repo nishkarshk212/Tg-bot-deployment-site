@@ -36,13 +36,13 @@ export async function POST(req: NextRequest) {
 
     switch (action) {
       case 'restart':
-        await execRemote(server as any, `npx pm2 restart "${name}"`);
+        await execRemote(server as any, `pm2 restart "${name}" || npx pm2 restart "${name}"`);
         break;
       case 'stop':
-        await execRemote(server as any, `npx pm2 stop "${name}"`);
+        await execRemote(server as any, `pm2 stop "${name}" || npx pm2 stop "${name}"`);
         break;
       case 'delete':
-        await execRemote(server as any, `npx pm2 delete "${name}"`);
+        await execRemote(server as any, `pm2 delete "${name}" || npx pm2 delete "${name}"`);
         // Cleanup deployment dir
         if (server.isLocal) {
           const deploymentDir = path.join(process.cwd(), 'deployments', name);

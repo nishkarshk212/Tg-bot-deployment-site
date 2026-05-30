@@ -16,6 +16,15 @@ export async function execRemote(server: Server, command: string): Promise<{ std
     throw new Error(`Password required for remote server ${server.name}`);
   }
 
+  // Robust environment setup for remote servers (handling NVM, FNM, and common paths)
+  const envSetup = [
+    'export PATH=$PATH:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin',
+    '[ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"',
+    '[ -s "$HOME/.profile" ] && . "$HOME/.profile"',
+    '[ -s "$HOME/.bashrc" ] && . "$HOME/.bashrc"',
+    'export PM2_HOME=$HOME/.pm2'
+  ].join('; ');
+
   return new Promise((resolve, reject) => {
     const conn = new Client();
     let stdout = '';
@@ -24,7 +33,7 @@ export async function execRemote(server: Server, command: string): Promise<{ std
     conn.on('ready', () => {
       // Use bash -l -c to ensure PATH is set correctly on the remote server
       const escapedCommand = command.replace(/"/g, '\\"');
-      const fullCommand = `bash -l -c "${escapedCommand}"`;
+      const fullCommand = `bash -l -c "${envSetup}; ${escapedCommand}"`;
 
       conn.exec(fullCommand, (err, stream) => {
         if (err) {

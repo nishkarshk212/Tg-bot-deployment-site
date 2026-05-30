@@ -36,8 +36,8 @@ export async function GET(req: NextRequest) {
     }
 
     const logCmd = isServerLog 
-      ? 'npx pm2 logs --nostream --lines 200' 
-      : `npx pm2 logs ${botName} --nostream --lines 100`;
+      ? '(pm2 logs --nostream --lines 200 || npx pm2 logs --nostream --lines 200)' 
+      : `(pm2 logs "${botName}" --nostream --lines 100 || npx pm2 logs "${botName}" --nostream --lines 100)`;
 
     const { stdout } = await execRemote(server as any, logCmd);
     return NextResponse.json({ logs: stdout });

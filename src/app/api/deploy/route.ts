@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Install dependencies
-    commands.push(`cd "${deploymentDir}" && ( [ -f yarn.lock ] && yarn install || [ -f pnpm-lock.yaml ] && pnpm install || npm install )`);
+    commands.push(`cd "${deploymentDir}" && ( [ -f yarn.lock ] && (yarn install || npx yarn install) || [ -f pnpm-lock.yaml ] && (pnpm install || npx pnpm install) || (npm install || npx npm install) )`);
 
     // 3. Find entry point
     const entryPoints = ['index.js', 'bot.js', 'main.js', 'src/index.js'];
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Start with PM2
-    const pm2Cmd = `npx pm2 start ${entryPoint} --name "${botName}" --update-env --cwd "${deploymentDir}"`;
+    const pm2Cmd = `(pm2 start ${entryPoint} --name "${botName}" --update-env --cwd "${deploymentDir}" || npx pm2 start ${entryPoint} --name "${botName}" --update-env --cwd "${deploymentDir}")`;
     commands.push(pm2Cmd);
 
     // Execute all commands
