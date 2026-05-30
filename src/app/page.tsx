@@ -49,8 +49,14 @@ interface Server {
 export default function Page() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [bots, setBots] = useState<BotStatus[]>([]);
   const [servers, setServers] = useState<Server[]>([]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [loading, setLoading] = useState(false);
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [showServerModal, setShowServerModal] = useState(false);
@@ -120,15 +126,15 @@ export default function Page() {
   };
 
   useEffect(() => {
-    if (status === "authenticated") {
+    if (mounted && status === "authenticated") {
       fetchStatus();
       fetchServers();
       const interval = setInterval(fetchStatus, 5000);
       return () => clearInterval(interval);
     }
-  }, [status]);
+  }, [status, mounted]);
 
-  if (status === "loading") {
+  if (!mounted || status === "loading") {
     return (
       <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center gap-4">

@@ -4,8 +4,10 @@ import React, { useEffect, useState } from "react";
 
 export const BackgroundRays = () => {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const handleMouseMove = (e: MouseEvent) => {
       setMousePos({ x: e.clientX, y: e.clientY });
     };
@@ -13,6 +15,8 @@ export const BackgroundRays = () => {
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
+
+  if (!mounted) return <div className="absolute inset-0 bg-[#0d1117] -z-10" />;
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
