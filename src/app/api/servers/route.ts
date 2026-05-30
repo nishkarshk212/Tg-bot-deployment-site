@@ -17,17 +17,24 @@ export async function GET() {
     // However, our callback adds 'id' to the session.user.
     const servers = await Server.find({ userId: (session.user as any).id });
     
+    // Transform Mongoose _id to id string for frontend consistency
+    const results = servers.map(s => ({
+      id: s._id.toString(),
+      name: s.name,
+      host: s.host,
+      username: s.username,
+      isLocal: false
+    }));
+    
     // Add a local server virtual if not present in DB for this user
-    const hasLocal = servers.some(s => s.isLocal);
-    const results = [...servers];
+    const hasLocal = results.some(s => s.isLocal);
     if (!hasLocal) {
       results.unshift({
         id: 'local',
         name: 'Local Server',
         host: 'localhost',
         username: 'local',
-        isLocal: true,
-        _id: 'local'
+        isLocal: true
       });
     }
 
