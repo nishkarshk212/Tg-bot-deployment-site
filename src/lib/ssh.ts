@@ -16,13 +16,16 @@ export async function execRemote(server: Server, command: string): Promise<{ std
     throw new Error(`Password required for remote server ${server.name}`);
   }
 
-  // Robust environment setup for remote servers (handling NVM, FNM, and common paths)
+  // Robust environment setup for remote servers
+  // We try to find where node/npm might be if they aren't in PATH
   const envSetup = [
-    'export PATH=$PATH:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin',
+    'export PATH=$PATH:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/sbin',
     '[ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"',
     '[ -s "$HOME/.profile" ] && . "$HOME/.profile"',
     '[ -s "$HOME/.bashrc" ] && . "$HOME/.bashrc"',
-    'export PM2_HOME=$HOME/.pm2'
+    'export PM2_HOME=$HOME/.pm2',
+    // Final check: if npm still not found, try to find it
+    'if ! command -v npm &> /dev/null; then export PATH="$PATH:$(find /usr/local/lib/nodejs /opt/node/bin /usr/local/bin -name npm -type f -exec dirname {} \; 2>/dev/null | head -n 1)"; fi'
   ].join('; ');
 
   return new Promise((resolve, reject) => {
@@ -33,6 +36,7 @@ export async function execRemote(server: Server, command: string): Promise<{ std
     conn.on('ready', () => {
       // Use bash -l -c to ensure PATH is set correctly on the remote server
       const escapedCommand = command.replace(/"/g, '\\"');
+      // We wrap the whole thing in a subshell to ensure envSetup applies to the command
       const fullCommand = `bash -l -c "${envSetup}; ${escapedCommand}"`;
 
       conn.exec(fullCommand, (err, stream) => {

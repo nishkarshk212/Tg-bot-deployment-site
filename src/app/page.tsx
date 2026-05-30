@@ -260,15 +260,20 @@ export default function Page() {
   }
 
   // Dashboard logic remains the same but with added entrance animations
+  const [deployProgress, setDeployProgress] = useState<{ phase: string, message: string, status: string }[]>([]);
+
   const handleDeploy = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setDeployProgress([]);
     try {
-      const envVarsObj = formData.envVars.split('\n').reduce((acc: any, curr) => {
-        const [key, value] = curr.split('=');
-        if (key && value) acc[key.trim()] = value.trim();
-        return acc;
-      }, {});
+      const envVarsLines = formData.envVars.split('\n');
+      const envVarsObj: { [key: string]: string } = {};
+      envVarsLines.forEach(line => {
+        const [key, ...rest] = line.split('=');
+        const value = rest.join('=');
+        if (key && value) envVarsObj[key.trim()] = value.trim();
+      });
 
       const res = await fetch("/api/deploy", {
         method: "POST",
@@ -279,14 +284,56 @@ export default function Page() {
         }),
       });
 
-      if (res.ok) {
-        setShowDeployModal(false);
-        setFormData({ ...formData, botName: "", repoUrl: "", botToken: "", envVars: "" });
-        fetchStatus();
-      } else {
+      if (!res.ok) {
         const error = await res.json();
-        if (error.error?.includes("Server not found")) fetchServers();
         alert(`Deployment failed: ${error.error}`);
+        setLoading(false);
+        return;
+      }
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n').filter(l => l.trim());
+          
+          lines.forEach(line => {
+            try {
+              const update = JSON.parse(line);
+              setDeployProgress(prev => {
+                const existing = prev.findIndex(p => p.phase === update.phase);
+                if (existing !== -1) {
+                  const newProgress = [...prev];
+                  newProgress[existing] = update;
+                  return newProgress;
+                }
+                return [...prev, update];
+              });
+
+              if (update.status === 'error') {
+                alert(`Deployment failed: ${update.message}`);
+                setLoading(false);
+              }
+            } catch (e) {
+              console.error("Failed to parse progress update:", e);
+            }
+          });
+        }
+      }
+
+      const finalStatus = deployProgress[deployProgress.length - 1];
+      if (finalStatus?.status === 'completed' && finalStatus.phase === 'deploying') {
+        setTimeout(() => {
+          setShowDeployModal(false);
+          setFormData({ ...formData, botName: "", repoUrl: "", botToken: "", envVars: "" });
+          setDeployProgress([]);
+          fetchStatus();
+        }, 2000);
       }
     } catch (error) {
       alert("An error occurred during deployment");
@@ -568,85 +615,139 @@ export default function Page() {
               <Plus className="text-blue-400" strokeWidth={3} size={24} />
               New Deployment
             </h2>
-            <form onSubmit={handleDeploy} className="space-y-5">
-              <div>
-                <label className="block text-sm font-semibold text-[#8b949e] mb-2 uppercase tracking-wider">Target Server</label>
-                <select
-                  required
-                  className={`w-full bg-[#0d1117] border ${!servers.find(s => (s.id === formData.serverId || (s as any)._id === formData.serverId)) ? 'border-red-500' : 'border-[#30363d]'} rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all appearance-none`}
-                  value={formData.serverId}
-                  onChange={(e) => setFormData({ ...formData, serverId: e.target.value })}
-                >
+
+            {deployProgress.length > 0 ? (
+              <div className="space-y-6 py-4">
+                {['creating', 'building', 'deploying'].map((phase, i) => {
+                  const step = deployProgress.find(p => p.phase === phase);
+                  const isCurrent = step?.status === 'in_progress';
+                  const isDone = step?.status === 'completed';
+                  const isError = step?.status === 'error';
+                  
+                  return (
+                    <div key={phase} className={`flex items-start gap-4 transition-all duration-500 ${!step && 'opacity-30'}`}>
+                      <div className="relative mt-1">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${
+                          isDone ? 'bg-emerald-500 border-emerald-500 text-white' : 
+                          isError ? 'bg-red-500 border-red-500 text-white' :
+                          isCurrent ? 'border-blue-500 animate-pulse shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'border-[#30363d]'
+                        }`}>
+                          {isDone ? (
+                            <ShieldCheck size={18} />
+                          ) : isError ? (
+                            <Trash2 size={18} />
+                          ) : (
+                            <span className="text-xs font-bold">{i + 1}</span>
+                          )}
+                        </div>
+                        {i < 2 && (
+                          <div className={`absolute top-8 left-1/2 -translate-x-1/2 w-0.5 h-10 transition-colors duration-500 ${
+                            isDone ? 'bg-emerald-500' : 'bg-[#30363d]'
+                          }`} />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className={`font-bold uppercase tracking-wider text-xs mb-1 transition-colors duration-500 ${
+                          isDone ? 'text-emerald-400' : isCurrent ? 'text-blue-400' : 'text-[#8b949e]'
+                        }`}>
+                          {phase}
+                        </h3>
+                        <p className={`text-sm transition-colors duration-500 ${
+                          isDone || isCurrent ? 'text-white' : 'text-[#8b949e]'
+                        }`}>
+                          {step?.message || `Waiting to start ${phase}...`}
+                        </p>
+                        {isCurrent && (
+                          <div className="mt-3 w-full bg-[#0d1117] h-1 rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-500 animate-[loading_2s_infinite_linear]" style={{ width: '40%' }} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <form onSubmit={handleDeploy} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-semibold text-[#8b949e] mb-2 uppercase tracking-wider">Target Server</label>
+                  <select
+                    required
+                    className={`w-full bg-[#0d1117] border ${!servers.find(s => (s.id === formData.serverId || (s as any)._id === formData.serverId)) ? 'border-red-500' : 'border-[#30363d]'} rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all appearance-none`}
+                    value={formData.serverId}
+                    onChange={(e) => setFormData({ ...formData, serverId: e.target.value })}
+                  >
+                    {!servers.find(s => (s.id === formData.serverId || (s as any)._id === formData.serverId)) && formData.serverId !== "" && (
+                      <option value={formData.serverId} disabled>Missing Server ({formData.serverId})</option>
+                    )}
+                    {servers.map(s => <option key={s.id || (s as any)._id} value={s.id || (s as any)._id}>{s.name} ({s.host})</option>)}
+                  </select>
                   {!servers.find(s => (s.id === formData.serverId || (s as any)._id === formData.serverId)) && formData.serverId !== "" && (
-                    <option value={formData.serverId} disabled>Missing Server ({formData.serverId})</option>
+                    <p className="text-red-400 text-xs mt-1">The previously selected server is no longer available. Please select a different server.</p>
                   )}
-                  {servers.map(s => <option key={s.id || (s as any)._id} value={s.id || (s as any)._id}>{s.name} ({s.host})</option>)}
-                </select>
-                {!servers.find(s => (s.id === formData.serverId || (s as any)._id === formData.serverId)) && formData.serverId !== "" && (
-                  <p className="text-red-400 text-xs mt-1">The previously selected server is no longer available. Please select a different server.</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-[#8b949e] mb-2 uppercase tracking-wider">Bot Name</label>
-                <input
-                  required
-                  className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
-                  placeholder="e.g. notification-bot"
-                  value={formData.botName}
-                  onChange={(e) => setFormData({ ...formData, botName: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-[#8b949e] mb-2 uppercase tracking-wider flex items-center gap-2">
-                  <Globe size={14} /> Repository URL
-                </label>
-                <input
-                  required
-                  className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
-                  placeholder="https://github.com/username/repo"
-                  value={formData.repoUrl}
-                  onChange={(e) => setFormData({ ...formData, repoUrl: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-[#8b949e] mb-2 uppercase tracking-wider flex items-center gap-2">
-                  <ShieldCheck size={14} /> Telegram Bot Token
-                </label>
-                <input
-                  required
-                  type="password"
-                  className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
-                  placeholder="123456789:ABCDEF..."
-                  value={formData.botToken}
-                  onChange={(e) => setFormData({ ...formData, botToken: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-[#8b949e] mb-2 uppercase tracking-wider">Env Vars (KEY=VALUE)</label>
-                <textarea
-                  className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all h-24 font-mono text-sm"
-                  placeholder="DATABASE_URL=mongodb://..."
-                  value={formData.envVars}
-                  onChange={(e) => setFormData({ ...formData, envVars: e.target.value })}
-                />
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowDeployModal(false)}
-                  className="flex-1 bg-[#21262d] border border-[#30363d] hover:bg-[#30363d] text-white py-3 rounded-lg font-bold transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-[2] bg-[#238636] hover:bg-[#2ea043] disabled:opacity-50 text-white py-3 rounded-lg font-bold transition-all"
-                >
-                  {loading ? "Deploying..." : "Create Deployment"}
-                </button>
-              </div>
-            </form>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-[#8b949e] mb-2 uppercase tracking-wider">Bot Name</label>
+                  <input
+                    required
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
+                    placeholder="e.g. notification-bot"
+                    value={formData.botName}
+                    onChange={(e) => setFormData({ ...formData, botName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-[#8b949e] mb-2 uppercase tracking-wider flex items-center gap-2">
+                    <Globe size={14} /> Repository URL
+                  </label>
+                  <input
+                    required
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
+                    placeholder="https://github.com/username/repo"
+                    value={formData.repoUrl}
+                    onChange={(e) => setFormData({ ...formData, repoUrl: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-[#8b949e] mb-2 uppercase tracking-wider flex items-center gap-2">
+                    <ShieldCheck size={14} /> Telegram Bot Token
+                  </label>
+                  <input
+                    required
+                    type="password"
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
+                    placeholder="123456789:ABCDEF..."
+                    value={formData.botToken}
+                    onChange={(e) => setFormData({ ...formData, botToken: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-[#8b949e] mb-2 uppercase tracking-wider">Env Vars (KEY=VALUE)</label>
+                  <textarea
+                    className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all h-24 font-mono text-sm"
+                    placeholder="DATABASE_URL=mongodb://..."
+                    value={formData.envVars}
+                    onChange={(e) => setFormData({ ...formData, envVars: e.target.value })}
+                  />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeployModal(false)}
+                    className="flex-1 bg-[#21262d] border border-[#30363d] hover:bg-[#30363d] text-white py-3 rounded-lg font-bold transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-[2] bg-[#238636] hover:bg-[#2ea043] disabled:opacity-50 text-white py-3 rounded-lg font-bold transition-all"
+                  >
+                    {loading ? "Deploying..." : "Create Deployment"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
