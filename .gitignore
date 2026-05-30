@@ -1,0 +1,8 @@
+node_modules
+.next
+deployments
+.env
+*.log
+.pm2_home
+node_modules/.pm2_home
+servers.json

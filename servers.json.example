@@ -1,0 +1,9 @@
+[
+  {
+    "id": "local",
+    "name": "Local Server",
+    "host": "localhost",
+    "username": "local",
+    "isLocal": true
+  }
+]
