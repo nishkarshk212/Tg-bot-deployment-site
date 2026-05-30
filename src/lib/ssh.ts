@@ -24,8 +24,8 @@ export async function execRemote(server: Server, command: string): Promise<{ std
     '[ -s "$HOME/.profile" ] && . "$HOME/.profile"',
     '[ -s "$HOME/.bashrc" ] && . "$HOME/.bashrc"',
     'export PM2_HOME=$HOME/.pm2',
-    // Final check: if npm still not found, try to find it
-    'if ! command -v npm &> /dev/null; then export PATH="$PATH:$(find /usr/local/lib/nodejs /opt/node/bin /usr/local/bin -name npm -type f -exec dirname {} \; 2>/dev/null | head -n 1)"; fi'
+    // Final check: if npm still not found, try to find it without using problematic -exec syntax
+    'if ! command -v npm &> /dev/null; then NPM_PATH=$(find /usr/local/lib/nodejs /opt/node/bin /usr/local/bin -name npm -type f 2>/dev/null | head -n 1); [ -n "$NPM_PATH" ] && export PATH="$PATH:$(dirname "$NPM_PATH")"; fi'
   ].join('; ');
 
   return new Promise((resolve, reject) => {
