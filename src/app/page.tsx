@@ -27,6 +27,7 @@ import {
   LogOut,
   User
 } from "lucide-react";
+import { BackgroundRays } from "@/components/BackgroundRays";
 
 interface BotStatus {
   name: string;
@@ -52,11 +53,6 @@ export default function Page() {
   const [mounted, setMounted] = useState(false);
   const [bots, setBots] = useState<BotStatus[]>([]);
   const [servers, setServers] = useState<Server[]>([]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const [loading, setLoading] = useState(false);
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [showServerModal, setShowServerModal] = useState(false);
@@ -76,14 +72,20 @@ export default function Page() {
   const [logs, setLogs] = useState<{ [key: string]: string }>({});
   const [activeLog, setActiveLog] = useState<{ name?: string; serverId: string; type: 'bot' | 'server' } | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [deployProgress, setDeployProgress] = useState<{ phase: string, message: string, status: string }[]>([]);
+
+  const isFetchingStatus = useRef(false);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
+    setMounted(true);
+    const handleScroll = () => {
+      if (typeof window !== 'undefined') {
+        setScrolled(window.scrollY > 20);
+      }
+    };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  const isFetchingStatus = useRef(false);
 
   const fetchStatus = async () => {
     if (status !== "authenticated" || isFetchingStatus.current) return;
@@ -113,8 +115,6 @@ export default function Page() {
       const data = await res.json();
       if (Array.isArray(data)) {
         setServers(data);
-        // If current selected server is gone, reset to local
-        // Using both id and _id check for maximum compatibility
         const serverExists = data.some((s: any) => (s.id === formData.serverId || s._id === formData.serverId));
         if (formData.serverId !== "local" && formData.serverId !== "" && !serverExists) {
           setFormData(prev => ({ ...prev, serverId: "local" }));
@@ -133,140 +133,6 @@ export default function Page() {
       return () => clearInterval(interval);
     }
   }, [status, mounted]);
-
-  if (!mounted || status === "loading") {
-    return (
-      <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
-        <div className="animate-pulse flex flex-col items-center gap-4">
-          <Zap className="text-blue-400" size={48} fill="currentColor" />
-          <p className="text-[#8b949e] font-medium">Loading Dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Render Landing Page if unauthenticated
-  if (status === "unauthenticated") {
-    return (
-      <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9] font-sans overflow-x-hidden">
-        {/* Navbar */}
-        <nav className={`fixed top-0 w-full z-50 transition-all duration-300 border-b ${
-          scrolled ? "bg-[#0d1117]/80 backdrop-blur-md border-[#30363d] py-3" : "bg-transparent border-transparent py-5"
-        }`}>
-          <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-            <div className="flex items-center gap-4 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-              <div className="bg-white/10 p-1.5 rounded-lg border border-white/10 group-hover:scale-110 transition-transform">
-                <Zap className="text-blue-400" size={24} fill="currentColor" />
-              </div>
-              <span className="text-xl font-semibold text-white tracking-tight">BotDeploy</span>
-            </div>
-            <div className="hidden md:flex items-center gap-8 text-sm font-medium text-[#8b949e]">
-              <a href="#features" className="hover:text-white transition-colors">Features</a>
-              <a href="#security" className="hover:text-white transition-colors">Security</a>
-              <Link href="/docs" className="hover:text-white transition-colors flex items-center gap-1.5">
-                <FileText size={16} /> Docs
-              </Link>
-            </div>
-            <div className="flex gap-4">
-              <Link href="/login" className="text-sm font-semibold text-[#8b949e] hover:text-white transition-colors py-2 px-4">
-                Sign In
-              </Link>
-              <Link
-                href="/register"
-                className="bg-white text-[#0d1117] px-5 py-2 rounded-lg text-sm font-bold hover:bg-[#f0f6fc] transition-all shadow-lg shadow-white/5"
-              >
-                Get Started
-              </Link>
-            </div>
-          </div>
-        </nav>
-
-        {/* Hero Section */}
-        <section className="relative pt-48 pb-32 px-6">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none overflow-hidden -z-10">
-            <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 blur-[120px] rounded-full animate-pulse" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
-            <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-          </div>
-          
-          <div className="max-w-7xl mx-auto relative">
-            <div className="max-w-4xl mx-auto text-center">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold tracking-widest uppercase mb-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-                <Activity size={12} /> The Future of Bot Management
-              </div>
-              <h1 className="text-6xl md:text-8xl font-bold text-white tracking-tight leading-[1.1] mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100">
-                Deploy bots <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-emerald-400">
-                  in seconds.
-                </span>
-              </h1>
-              <p className="text-xl md:text-2xl text-[#8b949e] leading-relaxed mb-12 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-200">
-                A professional platform for hosting and managing your Telegram bots. Scalable, secure, and lightning fast.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 animate-in fade-in slide-in-from-bottom-16 duration-1000 delay-300">
-                <Link
-                  href="/register"
-                  className="w-full sm:w-auto bg-white text-[#0d1117] px-10 py-5 rounded-xl font-bold text-lg hover:bg-[#f0f6fc] hover:scale-105 transition-all flex items-center justify-center gap-3 group shadow-2xl shadow-white/10"
-                >
-                  Start for free <ArrowRight size={22} className="group-hover:translate-x-1 transition-transform" />
-                </Link>
-                <a
-                  href="#features"
-                  className="w-full sm:w-auto bg-[#161b22] border border-[#30363d] text-white px-10 py-5 rounded-xl font-bold text-lg hover:bg-[#21262d] hover:border-[#8b949e] transition-all flex items-center justify-center gap-3"
-                >
-                  Explore Features
-                </a>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Features Grid */}
-        <section id="features" className="py-32 px-6 border-t border-[#30363d]">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-20">
-              <h2 className="text-4xl font-bold text-white mb-4">Everything you need</h2>
-              <p className="text-[#8b949e] text-lg">One platform to deploy, monitor, and scale.</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[
-                { icon: <Zap className="text-blue-400" />, title: "Instant Deploy", desc: "Push your code and watch it go live in seconds with automatic dependency resolution." },
-                { icon: <Shield className="text-purple-400" />, title: "Secure by Default", desc: "Enterprise-grade SSH encryption and password-less authentication for your peace of mind." },
-                { icon: <Cpu className="text-emerald-400" />, title: "Live Metrics", desc: "Real-time monitoring of CPU, memory, and uptime for every bot in your infrastructure." }
-              ].map((f, i) => (
-                <div key={i} className="bg-[#161b22] border border-[#30363d] p-8 rounded-2xl hover:border-blue-500/30 transition-all group hover:-translate-y-2 duration-300">
-                  <div className="bg-[#0d1117] w-14 h-14 rounded-xl flex items-center justify-center mb-6 border border-[#30363d] group-hover:scale-110 transition-transform">
-                    {f.icon}
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-3">{f.title}</h3>
-                  <p className="text-[#8b949e] leading-relaxed">{f.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Footer */}
-        <footer className="py-12 px-6 border-t border-[#30363d] bg-[#0d1117]">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-            <div className="flex items-center gap-3">
-              <Zap className="text-blue-400" size={20} fill="currentColor" />
-              <span className="text-lg font-bold text-white">BotDeploy</span>
-            </div>
-            <p className="text-[#8b949e] text-sm">© 2026 BotDeploy. Built for the modern developer.</p>
-            <div className="flex gap-6 text-sm text-[#8b949e]">
-              <a href="#" className="hover:text-white">Terms</a>
-              <a href="#" className="hover:text-white">Privacy</a>
-              <a href="#" className="hover:text-white">Twitter</a>
-            </div>
-          </div>
-        </footer>
-      </div>
-    );
-  }
-
-  // Dashboard logic remains the same but with added entrance animations
-  const [deployProgress, setDeployProgress] = useState<{ phase: string, message: string, status: string }[]>([]);
 
   const handleDeploy = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -412,8 +278,138 @@ export default function Page() {
     }
   };
 
+  // Render logic consolidated below all hooks and functions
+  if (!mounted || status === "loading") {
+    return (
+      <div className="min-h-screen bg-[#0d1117] flex items-center justify-center relative overflow-hidden">
+        <BackgroundRays />
+        <div className="relative z-10 animate-pulse flex flex-col items-center gap-4">
+          <Zap className="text-blue-400" size={48} fill="currentColor" />
+          <p className="text-[#8b949e] font-medium">Loading Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Render Landing Page if unauthenticated
+  if (status === "unauthenticated") {
+    return (
+      <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9] font-sans overflow-x-hidden relative">
+        <BackgroundRays />
+        {/* Navbar */}
+        <nav className={`fixed top-0 w-full z-50 transition-all duration-300 border-b ${
+          scrolled ? "bg-[#0d1117]/80 backdrop-blur-md border-[#30363d] py-3" : "bg-transparent border-transparent py-5"
+        }`}>
+          <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
+            <div className="flex items-center gap-4 group cursor-pointer" onClick={() => typeof window !== 'undefined' && window.scrollTo({ top: 0, behavior: 'smooth' })}>
+              <div className="bg-white/10 p-1.5 rounded-lg border border-white/10 group-hover:scale-110 transition-transform">
+                <Zap className="text-blue-400" size={24} fill="currentColor" />
+              </div>
+              <span className="text-xl font-semibold text-white tracking-tight">BotDeploy</span>
+            </div>
+            <div className="hidden md:flex items-center gap-8 text-sm font-medium text-[#8b949e]">
+              <a href="#features" className="hover:text-white transition-colors">Features</a>
+              <a href="#security" className="hover:text-white transition-colors">Security</a>
+              <Link href="/docs" className="hover:text-white transition-colors flex items-center gap-1.5">
+                <FileText size={16} /> Docs
+              </Link>
+            </div>
+            <div className="flex gap-4">
+              <Link href="/login" className="text-sm font-semibold text-[#8b949e] hover:text-white transition-colors py-2 px-4">
+                Sign In
+              </Link>
+              <Link
+                href="/register"
+                className="bg-white text-[#0d1117] px-5 py-2 rounded-lg text-sm font-bold hover:bg-[#f0f6fc] transition-all shadow-lg shadow-white/5"
+              >
+                Get Started
+              </Link>
+            </div>
+          </div>
+        </nav>
+
+        {/* Hero Section */}
+        <section className="relative pt-48 pb-32 px-6">
+          <div className="max-w-7xl mx-auto relative">
+            <div className="max-w-4xl mx-auto text-center">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold tracking-widest uppercase mb-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+                <Activity size={12} /> The Future of Bot Management
+              </div>
+              <h1 className="text-6xl md:text-8xl font-bold text-white tracking-tight leading-[1.1] mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100">
+                Deploy bots <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-emerald-400">
+                  in seconds.
+                </span>
+              </h1>
+              <p className="text-xl md:text-2xl text-[#8b949e] leading-relaxed mb-12 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-200">
+                A professional platform for hosting and managing your Telegram bots. Scalable, secure, and lightning fast.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 animate-in fade-in slide-in-from-bottom-16 duration-1000 delay-300">
+                <Link
+                  href="/register"
+                  className="w-full sm:w-auto bg-white text-[#0d1117] px-10 py-5 rounded-xl font-bold text-lg hover:bg-[#f0f6fc] hover:scale-105 transition-all flex items-center justify-center gap-3 group shadow-2xl shadow-white/10"
+                >
+                  Start for free <ArrowRight size={22} className="group-hover:translate-x-1 transition-transform" />
+                </Link>
+                <a
+                  href="#features"
+                  className="w-full sm:w-auto bg-[#161b22] border border-[#30363d] text-white px-10 py-5 rounded-xl font-bold text-lg hover:bg-[#21262d] hover:border-[#8b949e] transition-all flex items-center justify-center gap-3"
+                >
+                  Explore Features
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Features Grid */}
+        <section id="features" className="py-32 px-6 border-t border-[#30363d]">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-20">
+              <h2 className="text-4xl font-bold text-white mb-4">Everything you need</h2>
+              <p className="text-[#8b949e] text-lg">One platform to deploy, monitor, and scale.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                { icon: <Zap className="text-blue-400" />, title: "Instant Deploy", desc: "Push your code and watch it go live in seconds with automatic dependency resolution." },
+                { icon: <Shield className="text-purple-400" />, title: "Secure by Default", desc: "Enterprise-grade SSH encryption and password-less authentication for your peace of mind." },
+                { icon: <Cpu className="text-emerald-400" />, title: "Live Metrics", desc: "Real-time monitoring of CPU, memory, and uptime for every bot in your infrastructure." }
+              ].map((f, i) => (
+                <div key={i} className="bg-[#161b22]/50 backdrop-blur-sm border border-[#30363d] p-8 rounded-2xl hover:border-blue-500/30 transition-all group hover:-translate-y-2 duration-300">
+                  <div className="bg-[#0d1117] w-14 h-14 rounded-xl flex items-center justify-center mb-6 border border-[#30363d] group-hover:scale-110 transition-transform">
+                    {f.icon}
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-3">{f.title}</h3>
+                  <p className="text-[#8b949e] leading-relaxed">{f.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="py-12 px-6 border-t border-[#30363d] bg-[#0d1117]/80 backdrop-blur-sm">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+            <div className="flex items-center gap-3">
+              <Zap className="text-blue-400" size={20} fill="currentColor" />
+              <span className="text-lg font-bold text-white">BotDeploy</span>
+            </div>
+            <p className="text-[#8b949e] text-sm">© 2026 BotDeploy. Built for the modern developer.</p>
+            <div className="flex gap-6 text-sm text-[#8b949e]">
+              <a href="#" className="hover:text-white">Terms</a>
+              <a href="#" className="hover:text-white">Privacy</a>
+              <a href="#" className="hover:text-white">Twitter</a>
+            </div>
+          </div>
+        </footer>
+      </div>
+    );
+  }
+
+  // Dashboard logic
   return (
-    <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9] font-sans selection:bg-blue-500/30">
+    <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9] font-sans selection:bg-blue-500/30 relative">
+      <BackgroundRays />
       {/* Navbar */}
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 border-b ${
         scrolled ? "bg-[#0d1117]/80 backdrop-blur-md border-[#30363d] py-3" : "bg-transparent border-transparent py-5"
@@ -613,7 +609,7 @@ export default function Page() {
         </section>
       </main>
 
-      {/* Modals & Logs (Same as before) */}
+      {/* Modals & Logs */}
       {showDeployModal && (
         <div className="fixed inset-0 bg-[#0d1117]/80 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-in fade-in duration-300">
           <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-8 max-w-lg w-full shadow-2xl animate-in zoom-in duration-300">
