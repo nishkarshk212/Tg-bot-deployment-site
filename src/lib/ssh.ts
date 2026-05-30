@@ -1,10 +1,11 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { Server } from './servers';
+import { Client } from 'ssh2';
 
 const execPromise = promisify(exec);
 
-export async function execRemote(server: Server, command: string) {
+export async function execRemote(server: Server, command: string): Promise<{ stdout: string; stderr: string }> {
   if (server.isLocal) {
     // For local, we still use PM2_HOME isolation if it's a PM2 command
     const env = command.includes('pm2') ? `PM2_HOME=${process.cwd()}/node_modules/.pm2_home ` : '';
@@ -15,10 +16,49 @@ export async function execRemote(server: Server, command: string) {
     throw new Error(`Password required for remote server ${server.name}`);
   }
 
-  // Use sshpass for password-based SSH
-  // -o StrictHostKeyChecking=no to avoid interactive prompts for new hosts
-  // Use bash -l -c to run the command in a login shell, ensuring PATH is set correctly
-  const escapedCommand = command.replace(/"/g, '\\"');
-  const sshCmd = `sshpass -p "${server.password}" ssh -o StrictHostKeyChecking=no ${server.username}@${server.host} "bash -l -c \\"${escapedCommand}\\""`;
-  return execPromise(sshCmd);
+  return new Promise((resolve, reject) => {
+    const conn = new Client();
+    let stdout = '';
+    let stderr = '';
+
+    conn.on('ready', () => {
+      // Use bash -l -c to ensure PATH is set correctly on the remote server
+      const escapedCommand = command.replace(/"/g, '\\"');
+      const fullCommand = `bash -l -c "${escapedCommand}"`;
+
+      conn.exec(fullCommand, (err, stream) => {
+        if (err) {
+          conn.end();
+          return reject(err);
+        }
+        stream.on('data', (data: Buffer) => {
+          stdout += data.toString();
+        }).stderr.on('data', (data: Buffer) => {
+          stderr += data.toString();
+        }).on('close', (code: number) => {
+          conn.end();
+          if (code === 0) {
+            resolve({ stdout, stderr });
+          } else {
+            const error = new Error(`Command failed with exit code ${code}\n${stderr}`);
+            (error as any).code = code;
+            (error as any).stderr = stderr;
+            (error as any).stdout = stdout;
+            reject(error);
+          }
+        });
+      });
+    }).on('error', (err) => {
+      reject(err);
+    }).connect({
+      host: server.host,
+      port: 22,
+      username: server.username,
+      password: server.password,
+      readyTimeout: 20000,
+      // Avoid host key checking issues for simplicity in this project, 
+      // similar to -o StrictHostKeyChecking=no
+      hostHash: 'md5', 
+    });
+  });
 }
