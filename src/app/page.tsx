@@ -46,7 +46,7 @@ interface Server {
   isLocal?: boolean;
 }
 
-export default function Dashboard() {
+export default function Page() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [bots, setBots] = useState<BotStatus[]>([]);
@@ -72,12 +72,6 @@ export default function Dashboard() {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
-    }
-  }, [status, router]);
-
-  useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
@@ -101,10 +95,6 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error("Failed to fetch status:", error);
-      // Check if it's a network error or something else
-      if (error instanceof TypeError && error.message === "Failed to fetch") {
-        console.warn("Possible connection issue or request blocked. Check if the server is running and reachable.");
-      }
     } finally {
       isFetchingStatus.current = false;
     }
@@ -117,7 +107,6 @@ export default function Dashboard() {
       const data = await res.json();
       if (Array.isArray(data)) {
         setServers(data);
-        // If current selected server is gone, reset to local
         if (formData.serverId !== "local" && !data.find((s: Server) => s.id === formData.serverId)) {
           setFormData(prev => ({ ...prev, serverId: "local" }));
         }
@@ -147,8 +136,127 @@ export default function Dashboard() {
     );
   }
 
-  if (status === "unauthenticated") return null;
+  // Render Landing Page if unauthenticated
+  if (status === "unauthenticated") {
+    return (
+      <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9] font-sans overflow-x-hidden">
+        {/* Navbar */}
+        <nav className={`fixed top-0 w-full z-50 transition-all duration-300 border-b ${
+          scrolled ? "bg-[#0d1117]/80 backdrop-blur-md border-[#30363d] py-3" : "bg-transparent border-transparent py-5"
+        }`}>
+          <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
+            <div className="flex items-center gap-4 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+              <div className="bg-white/10 p-1.5 rounded-lg border border-white/10 group-hover:scale-110 transition-transform">
+                <Zap className="text-blue-400" size={24} fill="currentColor" />
+              </div>
+              <span className="text-xl font-semibold text-white tracking-tight">BotDeploy</span>
+            </div>
+            <div className="hidden md:flex items-center gap-8 text-sm font-medium text-[#8b949e]">
+              <a href="#features" className="hover:text-white transition-colors">Features</a>
+              <a href="#security" className="hover:text-white transition-colors">Security</a>
+              <Link href="/docs" className="hover:text-white transition-colors flex items-center gap-1.5">
+                <FileText size={16} /> Docs
+              </Link>
+            </div>
+            <div className="flex gap-4">
+              <Link href="/login" className="text-sm font-semibold text-[#8b949e] hover:text-white transition-colors py-2 px-4">
+                Sign In
+              </Link>
+              <Link
+                href="/register"
+                className="bg-white text-[#0d1117] px-5 py-2 rounded-lg text-sm font-bold hover:bg-[#f0f6fc] transition-all shadow-lg shadow-white/5"
+              >
+                Get Started
+              </Link>
+            </div>
+          </div>
+        </nav>
 
+        {/* Hero Section */}
+        <section className="relative pt-48 pb-32 px-6">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none overflow-hidden -z-10">
+            <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 blur-[120px] rounded-full animate-pulse" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
+            <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+          </div>
+          
+          <div className="max-w-7xl mx-auto relative">
+            <div className="max-w-4xl mx-auto text-center">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold tracking-widest uppercase mb-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+                <Activity size={12} /> The Future of Bot Management
+              </div>
+              <h1 className="text-6xl md:text-8xl font-bold text-white tracking-tight leading-[1.1] mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100">
+                Deploy bots <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-emerald-400">
+                  in seconds.
+                </span>
+              </h1>
+              <p className="text-xl md:text-2xl text-[#8b949e] leading-relaxed mb-12 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-200">
+                A professional platform for hosting and managing your Telegram bots. Scalable, secure, and lightning fast.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 animate-in fade-in slide-in-from-bottom-16 duration-1000 delay-300">
+                <Link
+                  href="/register"
+                  className="w-full sm:w-auto bg-white text-[#0d1117] px-10 py-5 rounded-xl font-bold text-lg hover:bg-[#f0f6fc] hover:scale-105 transition-all flex items-center justify-center gap-3 group shadow-2xl shadow-white/10"
+                >
+                  Start for free <ArrowRight size={22} className="group-hover:translate-x-1 transition-transform" />
+                </Link>
+                <a
+                  href="#features"
+                  className="w-full sm:w-auto bg-[#161b22] border border-[#30363d] text-white px-10 py-5 rounded-xl font-bold text-lg hover:bg-[#21262d] hover:border-[#8b949e] transition-all flex items-center justify-center gap-3"
+                >
+                  Explore Features
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Features Grid */}
+        <section id="features" className="py-32 px-6 border-t border-[#30363d]">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-20">
+              <h2 className="text-4xl font-bold text-white mb-4">Everything you need</h2>
+              <p className="text-[#8b949e] text-lg">One platform to deploy, monitor, and scale.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                { icon: <Zap className="text-blue-400" />, title: "Instant Deploy", desc: "Push your code and watch it go live in seconds with automatic dependency resolution." },
+                { icon: <Shield className="text-purple-400" />, title: "Secure by Default", desc: "Enterprise-grade SSH encryption and password-less authentication for your peace of mind." },
+                { icon: <Cpu className="text-emerald-400" />, title: "Live Metrics", desc: "Real-time monitoring of CPU, memory, and uptime for every bot in your infrastructure." }
+              ].map((f, i) => (
+                <div key={i} className="bg-[#161b22] border border-[#30363d] p-8 rounded-2xl hover:border-blue-500/30 transition-all group hover:-translate-y-2 duration-300">
+                  <div className="bg-[#0d1117] w-14 h-14 rounded-xl flex items-center justify-center mb-6 border border-[#30363d] group-hover:scale-110 transition-transform">
+                    {f.icon}
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-3">{f.title}</h3>
+                  <p className="text-[#8b949e] leading-relaxed">{f.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="py-12 px-6 border-t border-[#30363d] bg-[#0d1117]">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+            <div className="flex items-center gap-3">
+              <Zap className="text-blue-400" size={20} fill="currentColor" />
+              <span className="text-lg font-bold text-white">BotDeploy</span>
+            </div>
+            <p className="text-[#8b949e] text-sm">© 2026 BotDeploy. Built for the modern developer.</p>
+            <div className="flex gap-6 text-sm text-[#8b949e]">
+              <a href="#" className="hover:text-white">Terms</a>
+              <a href="#" className="hover:text-white">Privacy</a>
+              <a href="#" className="hover:text-white">Twitter</a>
+            </div>
+          </div>
+        </footer>
+      </div>
+    );
+  }
+
+  // Dashboard logic remains the same but with added entrance animations
   const handleDeploy = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -172,12 +280,9 @@ export default function Dashboard() {
         setShowDeployModal(false);
         setFormData({ ...formData, botName: "", repoUrl: "", botToken: "", envVars: "" });
         fetchStatus();
-        document.getElementById('dashboard-section')?.scrollIntoView({ behavior: 'smooth' });
       } else {
         const error = await res.json();
-        if (error.error?.includes("Server not found")) {
-          fetchServers(); // Refresh server list if a server is missing
-        }
+        if (error.error?.includes("Server not found")) fetchServers();
         alert(`Deployment failed: ${error.error}`);
       }
     } catch (error) {
@@ -224,7 +329,6 @@ export default function Dashboard() {
 
   const fetchLogs = async (serverId: string, botName?: string) => {
     try {
-      const type = botName ? 'bot' : 'server';
       const url = botName 
         ? `/api/logs?name=${botName}&serverId=${serverId}&type=bot`
         : `/api/logs?serverId=${serverId}&type=server`;
@@ -233,7 +337,7 @@ export default function Dashboard() {
       const data = await res.json();
       const logKey = botName ? `${botName}-${serverId}` : `server-${serverId}`;
       setLogs((prev) => ({ ...prev, [logKey]: data.logs }));
-      setActiveLog({ name: botName, serverId, type });
+      setActiveLog({ name: botName, serverId, type: botName ? 'bot' : 'server' });
     } catch (error) {
       console.error("Failed to fetch logs:", error);
     }
@@ -246,9 +350,7 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, name, serverId }),
       });
-      if (res.ok) {
-        fetchStatus();
-      }
+      if (res.ok) fetchStatus();
     } catch (error) {
       console.error(`Action ${action} failed:`, error);
     }
@@ -268,7 +370,6 @@ export default function Dashboard() {
             <span className="text-xl font-semibold text-white tracking-tight">BotDeploy</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-[#8b949e]">
-            <a href="#features" className="hover:text-white transition-colors">Features</a>
             <a href="#dashboard-section" className="hover:text-white transition-colors">Dashboard</a>
             <a href="#servers-section" className="hover:text-white transition-colors">Servers</a>
             <Link href="/docs" className="hover:text-white transition-colors flex items-center gap-1.5">
@@ -297,182 +398,169 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      {/* Hero Section (Same as before) */}
-      <section className="relative pt-32 pb-24 px-6 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none overflow-hidden">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full" />
-          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-        </div>
-        <div className="max-w-7xl mx-auto relative">
-          <div className="max-w-3xl">
-            <h1 className="text-6xl md:text-8xl font-bold text-white tracking-tight leading-[1.1] mb-8">
-              Remote bot <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-emerald-400">
-                management.
-              </span>
-            </h1>
-            <p className="text-xl md:text-2xl text-[#8b949e] leading-relaxed mb-10 max-w-2xl">
-              Deploy to any server using SSH and sshpass. Real-time monitoring across your entire infrastructure.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <button
-                onClick={() => setShowDeployModal(true)}
-                className="w-full sm:w-auto bg-white text-[#0d1117] px-8 py-4 rounded-lg font-bold text-lg hover:bg-[#f0f6fc] transition-all flex items-center justify-center gap-2 group shadow-xl shadow-white/5"
-              >
-                Deploy your bot <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-              </button>
+      <main className="pt-24 animate-in fade-in duration-700">
+        {/* Servers Management Section */}
+        <section id="servers-section" className="py-12 px-6 relative">
+          <div className="max-w-7xl mx-auto">
+            <header className="flex justify-between items-center mb-10">
+              <div>
+                <div className="flex items-center gap-2 text-purple-400 font-mono text-sm mb-2">
+                  <ServerIcon size={14} /> INFRASTRUCTURE
+                </div>
+                <h2 className="text-4xl font-bold text-white tracking-tight">Connected Servers</h2>
+              </div>
               <button
                 onClick={() => setShowServerModal(true)}
-                className="w-full sm:w-auto bg-[#161b22] border border-[#30363d] text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-[#21262d] transition-all flex items-center justify-center gap-2"
+                className="bg-[#161b22] border border-[#30363d] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#21262d] transition-all flex items-center gap-2"
               >
-                Add Remote Server
+                <Plus size={16} /> Add Server
               </button>
-            </div>
-          </div>
-        </div>
-      </section>
+            </header>
 
-      {/* Servers Management Section */}
-      <section id="servers-section" className="py-24 border-t border-[#30363d] bg-[#0d1117]/50 relative">
-        <div className="max-w-7xl mx-auto px-6">
-          <header className="mb-12">
-            <div className="flex items-center gap-2 text-purple-400 font-mono text-sm mb-2">
-              <ServerIcon size={14} /> INFRASTRUCTURE
-            </div>
-            <h2 className="text-4xl font-bold text-white tracking-tight">Connected Servers</h2>
-          </header>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {servers.map((server) => (
-              <div key={server.id} className="bg-[#161b22] border border-[#30363d] rounded-xl p-6 hover:border-purple-500/30 transition-all relative group">
-                <div className="absolute top-4 right-4 flex gap-2">
-                  <button 
-                    onClick={() => fetchLogs(server.id)}
-                    title="Server Logs"
-                    className="text-[#8b949e] hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all"
-                  >
-                    <Terminal size={16} />
-                  </button>
-                  {!server.isLocal && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {servers.map((server, i) => (
+                <div 
+                  key={server.id} 
+                  className="bg-[#161b22] border border-[#30363d] rounded-xl p-6 hover:border-purple-500/30 transition-all relative group animate-in fade-in zoom-in duration-500"
+                  style={{ animationDelay: `${i * 100}ms` }}
+                >
+                  <div className="absolute top-4 right-4 flex gap-2">
                     <button 
-                      onClick={() => handleDeleteServer(server.id)}
-                      className="text-[#8b949e] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                      onClick={() => fetchLogs(server.id)}
+                      title="Server Logs"
+                      className="text-[#8b949e] hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all"
                     >
-                      <Trash2 size={16} />
+                      <Terminal size={16} />
                     </button>
-                  )}
+                    {!server.isLocal && (
+                      <button 
+                        onClick={() => handleDeleteServer(server.id)}
+                        className="text-[#8b949e] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="bg-[#0d1117] p-3 rounded-lg w-fit mb-4 border border-[#30363d] group-hover:scale-110 transition-transform">
+                    <HardDrive className={server.isLocal ? "text-blue-400" : "text-purple-400"} size={24} />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1 group-hover:text-purple-400 transition-colors">{server.name}</h3>
+                  <p className="text-sm text-[#8b949e] font-mono">{server.username}@{server.host}</p>
+                  {server.isLocal && <span className="mt-4 inline-block text-[10px] font-bold uppercase tracking-widest text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded">Current System</span>}
                 </div>
-                <div className="bg-[#0d1117] p-3 rounded-lg w-fit mb-4 border border-[#30363d]">
-                  <HardDrive className={server.isLocal ? "text-blue-400" : "text-purple-400"} size={24} />
-                </div>
-                <h3 className="text-lg font-bold text-white mb-1">{server.name}</h3>
-                <p className="text-sm text-[#8b949e] font-mono">{server.username}@{server.host}</p>
-                {server.isLocal && <span className="mt-4 inline-block text-[10px] font-bold uppercase tracking-widest text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded">Current System</span>}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Dashboard Section */}
-      <section id="dashboard-section" className="py-24 border-t border-[#30363d] bg-[#0d1117] relative">
-        <div className="max-w-7xl mx-auto px-6">
-          <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
-            <div>
+        {/* Dashboard Section */}
+        <section id="dashboard-section" className="py-12 border-t border-[#30363d] bg-[#0d1117]/50 relative">
+          <div className="max-w-7xl mx-auto px-6">
+            <header className="mb-10">
               <div className="flex items-center gap-2 text-blue-400 font-mono text-sm mb-2">
                 <LayoutDashboard size={14} /> SYSTEM DASHBOARD
               </div>
               <h2 className="text-4xl font-bold text-white tracking-tight">Active Deployments</h2>
-            </div>
-          </header>
+            </header>
 
-          {bots.length === 0 ? (
-            <div className="bg-[#161b22] border-2 border-dashed border-[#30363d] rounded-2xl p-20 text-center">
-              <h3 className="text-2xl font-bold text-white mb-2">No active bots</h3>
-              <p className="text-[#8b949e] mb-8">Deploy your first bot to see its performance metrics here.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {bots.map((bot) => (
-                <div key={`${bot.name}-${bot.serverId}`} className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden hover:border-[#8b949e]/50 transition-all group">
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2.5 rounded-lg ${bot.status === 'online' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                          <Activity size={20} />
+            {bots.length === 0 ? (
+              <div className="bg-[#161b22] border-2 border-dashed border-[#30363d] rounded-2xl p-20 text-center animate-in fade-in duration-700">
+                <h3 className="text-2xl font-bold text-white mb-2">No active bots</h3>
+                <p className="text-[#8b949e] mb-8">Deploy your first bot to see its performance metrics here.</p>
+                <button
+                  onClick={() => setShowDeployModal(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20"
+                >
+                  Create Deployment
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {bots.map((bot, i) => (
+                  <div 
+                    key={`${bot.name}-${bot.serverId}`} 
+                    className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden hover:border-blue-500/30 transition-all group animate-in fade-in slide-in-from-bottom-4 duration-500"
+                    style={{ animationDelay: `${i * 100}ms` }}
+                  >
+                    <div className="p-6">
+                      <div className="flex justify-between items-start mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2.5 rounded-lg ${bot.status === 'online' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                            <Activity size={20} className={bot.status === 'online' ? 'animate-pulse' : ''} />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">{bot.name}</h3>
+                            <p className="text-[10px] text-[#8b949e] uppercase font-bold tracking-wider mt-0.5 flex items-center gap-1">
+                              <ServerIcon size={10} /> {bot.serverName}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">{bot.name}</h3>
-                          <p className="text-[10px] text-[#8b949e] uppercase font-bold tracking-wider mt-0.5 flex items-center gap-1">
-                            <ServerIcon size={10} /> {bot.serverName}
-                          </p>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                          bot.status === 'online' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                        }`}>
+                          {bot.status}
+                        </span>
+                      </div>
+
+                      <div className="space-y-4 mb-8">
+                        <div className="flex justify-between items-end">
+                          <span className="text-[#8b949e] text-sm">CPU Usage</span>
+                          <span className="text-white font-mono">{bot.cpu}%</span>
+                        </div>
+                        <div className="w-full bg-[#0d1117] h-1.5 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full transition-all duration-500 ${bot.cpu > 80 ? 'bg-red-500' : bot.cpu > 50 ? 'bg-amber-500' : 'bg-blue-500'}`}
+                            style={{ width: `${Math.min(bot.cpu, 100)}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between items-end">
+                          <span className="text-[#8b949e] text-sm">Memory</span>
+                          <span className="text-white font-mono">{(bot.memory / (1024 * 1024)).toFixed(1)} MB</span>
                         </div>
                       </div>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                        bot.status === 'online' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                      }`}>
-                        {bot.status}
-                      </span>
-                    </div>
 
-                    <div className="space-y-4 mb-8">
-                      <div className="flex justify-between items-end">
-                        <span className="text-[#8b949e] text-sm">CPU Usage</span>
-                        <span className="text-white font-mono">{bot.cpu}%</span>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => fetchLogs(bot.serverId, bot.name)}
+                          className="flex-1 flex items-center justify-center gap-2 bg-[#21262d] border border-[#30363d] hover:border-[#8b949e] text-white py-2.5 rounded-lg transition-all text-sm font-bold"
+                        >
+                          <Terminal size={16} /> Logs
+                        </button>
+                        <button 
+                          onClick={() => handleAction('restart', bot.name, bot.serverId)}
+                          title="Restart Service"
+                          className="p-2.5 bg-[#21262d] border border-[#30363d] hover:border-blue-400/50 text-blue-400 rounded-lg transition-all"
+                        >
+                          <RotateCcw size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleAction('stop', bot.name, bot.serverId)}
+                          title="Stop Service"
+                          className="p-2.5 bg-[#21262d] border border-[#30363d] hover:border-amber-400/50 text-amber-400 rounded-lg transition-all"
+                        >
+                          <Square size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleAction('delete', bot.name, bot.serverId)}
+                          title="Undeploy (Delete)"
+                          className="p-2.5 bg-[#21262d] border border-[#30363d] hover:border-red-400/50 text-red-400 rounded-lg transition-all"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
-                      <div className="w-full bg-[#0d1117] h-1.5 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full transition-all duration-500 ${bot.cpu > 80 ? 'bg-red-500' : bot.cpu > 50 ? 'bg-amber-500' : 'bg-blue-500'}`}
-                          style={{ width: `${Math.min(bot.cpu, 100)}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between items-end">
-                        <span className="text-[#8b949e] text-sm">Memory</span>
-                        <span className="text-white font-mono">{(bot.memory / (1024 * 1024)).toFixed(1)} MB</span>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => fetchLogs(bot.serverId, bot.name)}
-                        className="flex-1 flex items-center justify-center gap-2 bg-[#21262d] border border-[#30363d] hover:border-[#8b949e] text-white py-2.5 rounded-lg transition-all text-sm font-bold"
-                      >
-                        <Terminal size={16} /> Logs
-                      </button>
-                      <button 
-                        onClick={() => handleAction('restart', bot.name, bot.serverId)}
-                        title="Restart Service"
-                        className="p-2.5 bg-[#21262d] border border-[#30363d] hover:border-blue-400/50 text-blue-400 rounded-lg transition-all"
-                      >
-                        <RotateCcw size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleAction('stop', bot.name, bot.serverId)}
-                        title="Stop Service"
-                        className="p-2.5 bg-[#21262d] border border-[#30363d] hover:border-amber-400/50 text-amber-400 rounded-lg transition-all"
-                      >
-                        <Square size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleAction('delete', bot.name, bot.serverId)}
-                        title="Undeploy (Delete)"
-                        className="p-2.5 bg-[#21262d] border border-[#30363d] hover:border-red-400/50 text-red-400 rounded-lg transition-all"
-                      >
-                        <Trash2 size={16} />
-                      </button>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
 
-      {/* Deploy Modal */}
+      {/* Modals & Logs (Same as before) */}
       {showDeployModal && (
-        <div className="fixed inset-0 bg-[#0d1117]/80 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
-          <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-8 max-w-lg w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-[#0d1117]/80 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-in fade-in duration-300">
+          <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-8 max-w-lg w-full shadow-2xl animate-in zoom-in duration-300">
             <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
               <Plus className="text-blue-400" strokeWidth={3} size={24} />
               New Deployment
@@ -560,10 +648,9 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Server Modal */}
       {showServerModal && (
-        <div className="fixed inset-0 bg-[#0d1117]/80 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
-          <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-8 max-w-lg w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-[#0d1117]/80 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-in fade-in duration-300">
+          <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-8 max-w-lg w-full shadow-2xl animate-in zoom-in duration-300">
             <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
               <ServerIcon className="text-purple-400" size={24} />
               Add Remote Server
@@ -603,7 +690,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-[#8b949e] mb-2 uppercase tracking-wider flex items-center gap-2">
-                  <Lock size={14} /> Password (for sshpass)
+                  <Lock size={14} /> Password (for SSH)
                 </label>
                 <input
                   required
@@ -635,19 +722,15 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Logs Modal */}
       {activeLog && (
-        <div className="fixed inset-0 bg-[#0d1117]/80 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
-          <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-8 max-w-4xl w-full shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-[#0d1117]/80 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-in fade-in duration-300">
+          <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-8 max-w-4xl w-full shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in duration-300">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                 <Terminal className="text-blue-400" />
-                Logs: <span className="text-[#8b949e] font-mono font-normal">{activeLog.name}</span>
+                Logs: <span className="text-[#8b949e] font-mono font-normal">{activeLog.name || 'Server'}</span>
               </h2>
-              <button 
-                onClick={() => setActiveLog(null)}
-                className="p-2 hover:bg-[#30363d] rounded-lg text-[#8b949e] transition-colors"
-              >
+              <button onClick={() => setActiveLog(null)} className="p-2 hover:bg-[#30363d] rounded-lg text-[#8b949e] transition-colors">
                 <Plus className="rotate-45" size={24} />
               </button>
             </div>
