@@ -19,6 +19,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Server not found' }, { status: 404 });
     }
 
+    if (server.isLocal && (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME)) {
+      return NextResponse.json({ 
+        error: 'Local deployment is not supported on serverless platforms like Vercel. Please add a remote VPS to deploy your bots.' 
+      }, { status: 400 });
+    }
+
     // Define remote path (we'll use a standard path for simplicity)
     const remoteBaseDir = server.isLocal ? path.join(process.cwd(), 'deployments') : '~/bot_deployments';
     const deploymentDir = server.isLocal ? path.join(remoteBaseDir, botName) : `${remoteBaseDir}/${botName}`;
