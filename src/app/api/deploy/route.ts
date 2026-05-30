@@ -14,7 +14,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { repoUrl, botToken, envVars, botName, serverId } = await req.json();
+    const { repoUrl: rawRepoUrl, botToken: rawBotToken, envVars, botName: rawBotName, serverId } = await req.json();
+
+    const repoUrl = rawRepoUrl?.trim();
+    const botToken = rawBotToken?.trim();
+    const botName = rawBotName?.trim();
 
     if (!repoUrl || !botToken || !botName || !serverId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -46,24 +50,24 @@ export async function POST(req: NextRequest) {
 
     // 1. Prepare commands
     const commands = [
-      `mkdir -p ${remoteBaseDir}`,
-      `if [ -d "${deploymentDir}" ]; then cd ${deploymentDir} && git pull; else git clone ${repoUrl} ${deploymentDir}; fi`,
-      `echo "BOT_TOKEN=${botToken}" > ${deploymentDir}/.env`,
+      `mkdir -p "${remoteBaseDir}"`,
+      `if [ -d "${deploymentDir}" ]; then cd "${deploymentDir}" && git pull; else git clone "${repoUrl}" "${deploymentDir}"; fi`,
+      `echo "BOT_TOKEN=${botToken}" > "${deploymentDir}/.env"`,
     ];
 
     // Add custom env vars
     if (envVars) {
       Object.entries(envVars).forEach(([key, value]) => {
-        commands.push(`echo "${key}=${value}" >> ${deploymentDir}/.env`);
+        commands.push(`echo "${key}=${value}" >> "${deploymentDir}/.env"`);
       });
     }
 
     // 2. Install dependencies
-    commands.push(`cd ${deploymentDir} && ( [ -f yarn.lock ] && yarn install || [ -f pnpm-lock.yaml ] && pnpm install || npm install )`);
+    commands.push(`cd "${deploymentDir}" && ( [ -f yarn.lock ] && yarn install || [ -f pnpm-lock.yaml ] && pnpm install || npm install )`);
 
     // 3. Find entry point
     const entryPoints = ['index.js', 'bot.js', 'main.js', 'src/index.js'];
-    const findEntryCmd = `cd ${deploymentDir} && for f in ${entryPoints.join(' ')}; do [ -f $f ] && echo $f && break; done`;
+    const findEntryCmd = `cd "${deploymentDir}" && for f in ${entryPoints.join(' ')}; do [ -f $f ] && echo $f && break; done`;
     
     let entryPoint = 'index.js';
     try {
@@ -74,7 +78,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Start with PM2
-    const pm2Cmd = `npx pm2 start ${entryPoint} --name "${botName}" --update-env --cwd ${deploymentDir}`;
+    const pm2Cmd = `npx pm2 start ${entryPoint} --name "${botName}" --update-env --cwd "${deploymentDir}"`;
     commands.push(pm2Cmd);
 
     // Execute all commands
