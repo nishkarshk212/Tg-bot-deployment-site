@@ -89,6 +89,10 @@ export default function Dashboard() {
       const data = await res.json();
       if (Array.isArray(data)) {
         setServers(data);
+        // If current selected server is gone, reset to local
+        if (formData.serverId !== "local" && !data.find((s: Server) => s.id === formData.serverId)) {
+          setFormData(prev => ({ ...prev, serverId: "local" }));
+        }
       }
     } catch (error) {
       console.error("Failed to fetch servers:", error);
@@ -128,6 +132,9 @@ export default function Dashboard() {
         document.getElementById('dashboard-section')?.scrollIntoView({ behavior: 'smooth' });
       } else {
         const error = await res.json();
+        if (error.error?.includes("Server not found")) {
+          fetchServers(); // Refresh server list if a server is missing
+        }
         alert(`Deployment failed: ${error.error}`);
       }
     } catch (error) {
@@ -427,12 +434,18 @@ export default function Dashboard() {
                 <label className="block text-sm font-semibold text-[#8b949e] mb-2 uppercase tracking-wider">Target Server</label>
                 <select
                   required
-                  className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all appearance-none"
+                  className={`w-full bg-[#0d1117] border ${!servers.find(s => s.id === formData.serverId) ? 'border-red-500' : 'border-[#30363d]'} rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all appearance-none`}
                   value={formData.serverId}
                   onChange={(e) => setFormData({ ...formData, serverId: e.target.value })}
                 >
+                  {!servers.find(s => s.id === formData.serverId) && formData.serverId !== "" && (
+                    <option value={formData.serverId} disabled>Missing Server ({formData.serverId})</option>
+                  )}
                   {servers.map(s => <option key={s.id} value={s.id}>{s.name} ({s.host})</option>)}
                 </select>
+                {!servers.find(s => s.id === formData.serverId) && formData.serverId !== "" && (
+                  <p className="text-red-400 text-xs mt-1">The previously selected server is no longer available. Please select a different server.</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-[#8b949e] mb-2 uppercase tracking-wider">Bot Name</label>
