@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../auth/[...nextauth]/route';
 import dbConnect from '@/lib/mongodb';
 import Server from '@/models/Server';
-import { v4 as uuidv4 } from 'uuid';
 
 export async function GET() {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -39,13 +39,22 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const serverData = await req.json();
     await dbConnect();
+    
+    const userId = (session.user as any).id;
+    if (!userId) {
+      // Fallback: get user ID by email if session.user.id is still missing
+      const User = (await import('@/models/User')).default;
+      const user = await User.findOne({ email: session.user.email });
+      if (!user) throw new Error('User not found in database');
+      (session.user as any).id = user._id.toString();
+    }
     
     const newServer = await Server.create({
       ...serverData,
@@ -61,7 +70,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
