@@ -14,9 +14,12 @@
   "description": "",
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.0",
+    "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "lucide-react": "^1.17.0",
+    "mongoose": "^9.6.3",
     "next": "^16.2.6",
+    "next-auth": "^4.24.14",
     "pm2": "^7.0.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
@@ -25,6 +28,7 @@
     "uuid": "^14.0.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",

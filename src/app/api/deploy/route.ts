@@ -1,22 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
 import path from 'path';
 import fs from 'fs';
-import { getServers } from '@/lib/servers';
+import dbConnect from '@/lib/mongodb';
+import Server from '@/models/Server';
 import { execRemote } from '@/lib/ssh';
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession();
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { repoUrl, botToken, envVars, botName, serverId } = await req.json();
 
     if (!repoUrl || !botToken || !botName || !serverId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const servers = getServers();
-    const server = servers.find(s => s.id === serverId);
+    await dbConnect();
+    const userId = (session.user as any).id;
+    
+    let server;
+    if (serverId === 'local') {
+      server = { id: 'local', name: 'Local Server', host: 'localhost', username: 'local', isLocal: true };
+    } else {
+      server = await Server.findOne({ _id: serverId, userId });
+    }
 
     if (!server) {
-      console.error(`Deployment failed: Server with ID "${serverId}" not found. Available servers: ${servers.map(s => s.id).join(', ')}`);
       return NextResponse.json({ error: `Server not found (ID: ${serverId})` }, { status: 404 });
     }
 
@@ -26,7 +39,7 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Define remote path (we'll use a standard path for simplicity)
+    // Define remote path
     const remoteBaseDir = server.isLocal ? path.join(process.cwd(), 'deployments') : '~/bot_deployments';
     const deploymentDir = server.isLocal ? path.join(remoteBaseDir, botName) : `${remoteBaseDir}/${botName}`;
 
@@ -48,26 +61,24 @@ export async function POST(req: NextRequest) {
     commands.push(`cd ${deploymentDir} && ( [ -f yarn.lock ] && yarn install || [ -f pnpm-lock.yaml ] && pnpm install || npm install )`);
 
     // 3. Find entry point
-    // This is a bit tricky remotely, so we'll try common names
     const entryPoints = ['index.js', 'bot.js', 'main.js', 'src/index.js'];
     const findEntryCmd = `cd ${deploymentDir} && for f in ${entryPoints.join(' ')}; do [ -f $f ] && echo $f && break; done`;
     
-    // We'll run the find command first
     let entryPoint = 'index.js';
     try {
-      const { stdout } = await execRemote(server, findEntryCmd);
+      const { stdout } = await execRemote(server as any, findEntryCmd);
       if (stdout.trim()) entryPoint = stdout.trim();
     } catch (e) {
-      // fallback to index.js
+      // fallback
     }
 
     // 4. Start with PM2
     const pm2Cmd = `npx pm2 start ${entryPoint} --name "${botName}" --update-env --cwd ${deploymentDir}`;
     commands.push(pm2Cmd);
 
-    // Execute all commands in sequence
+    // Execute all commands
     const fullCmd = commands.join(' && ');
-    await execRemote(server, fullCmd);
+    await execRemote(server as any, fullCmd);
 
     return NextResponse.json({ message: 'Deployment successful', botName, server: server.name });
   } catch (error: any) {

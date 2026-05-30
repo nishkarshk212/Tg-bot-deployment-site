@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { 
   Plus, 
@@ -21,7 +23,9 @@ import {
   Server as ServerIcon,
   HardDrive,
   Settings,
-  Lock
+  Lock,
+  LogOut,
+  User
 } from "lucide-react";
 
 interface BotStatus {
@@ -43,6 +47,8 @@ interface Server {
 }
 
 export default function Dashboard() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [bots, setBots] = useState<BotStatus[]>([]);
   const [servers, setServers] = useState<Server[]>([]);
   const [loading, setLoading] = useState(false);
@@ -66,6 +72,12 @@ export default function Dashboard() {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [status, router]);
+
+  useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
@@ -74,7 +86,7 @@ export default function Dashboard() {
   const isFetchingStatus = useRef(false);
 
   const fetchStatus = async () => {
-    if (isFetchingStatus.current) return;
+    if (status !== "authenticated" || isFetchingStatus.current) return;
     isFetchingStatus.current = true;
     try {
       const res = await fetch("/api/status");
@@ -99,6 +111,7 @@ export default function Dashboard() {
   };
 
   const fetchServers = async () => {
+    if (status !== "authenticated") return;
     try {
       const res = await fetch("/api/servers");
       const data = await res.json();
@@ -115,11 +128,26 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    fetchStatus();
-    fetchServers();
-    const interval = setInterval(fetchStatus, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    if (status === "authenticated") {
+      fetchStatus();
+      fetchServers();
+      const interval = setInterval(fetchStatus, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [status]);
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <Zap className="text-blue-400" size={48} fill="currentColor" />
+          <p className="text-[#8b949e] font-medium">Loading Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "unauthenticated") return null;
 
   const handleDeploy = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,12 +275,17 @@ export default function Dashboard() {
               <FileText size={16} /> Docs
             </Link>
           </div>
-          <div className="flex gap-3">
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#161b22] border border-[#30363d] rounded-full text-xs font-medium">
+              <User size={14} className="text-blue-400" />
+              <span className="text-white max-w-[120px] truncate">{session?.user?.email}</span>
+            </div>
             <button
-              onClick={() => setShowServerModal(true)}
-              className="bg-[#161b22] border border-[#30363d] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#21262d] transition-all"
+              onClick={() => signOut()}
+              title="Sign Out"
+              className="p-2 bg-[#161b22] border border-[#30363d] text-[#8b949e] hover:text-red-400 hover:border-red-500/30 rounded-lg transition-all"
             >
-              Add Server
+              <LogOut size={18} />
             </button>
             <button
               onClick={() => setShowDeployModal(true)}

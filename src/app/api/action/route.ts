@@ -1,34 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
 import path from 'path';
 import fs from 'fs';
-import { getServers } from '@/lib/servers';
+import dbConnect from '@/lib/mongodb';
+import Server from '@/models/Server';
 import { execRemote } from '@/lib/ssh';
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession();
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { action, name, serverId } = await req.json();
 
     if (!action || !name || !serverId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const servers = getServers();
-    const server = servers.find(s => s.id === serverId);
+    await dbConnect();
+    const userId = (session.user as any).id;
+    
+    let server;
+    if (serverId === 'local') {
+      server = { id: 'local', name: 'Local Server', host: 'localhost', username: 'local', isLocal: true };
+    } else {
+      server = await Server.findOne({ _id: serverId, userId });
+    }
+
     if (!server) {
-      console.error(`Action failed: Server with ID "${serverId}" not found. Available servers: ${servers.map(s => s.id).join(', ')}`);
-      throw new Error(`Server not found (ID: ${serverId})`);
+      return NextResponse.json({ error: `Server not found (ID: ${serverId})` }, { status: 404 });
     }
 
     switch (action) {
       case 'restart':
-        await execRemote(server, `npx pm2 restart "${name}"`);
+        await execRemote(server as any, `npx pm2 restart "${name}"`);
         break;
       case 'stop':
-        await execRemote(server, `npx pm2 stop "${name}"`);
+        await execRemote(server as any, `npx pm2 stop "${name}"`);
         break;
       case 'delete':
-        await execRemote(server, `npx pm2 delete "${name}"`);
-        // Cleanup deployment dir if local
+        await execRemote(server as any, `npx pm2 delete "${name}"`);
+        // Cleanup deployment dir
         if (server.isLocal) {
           const deploymentDir = path.join(process.cwd(), 'deployments', name);
           if (fs.existsSync(deploymentDir)) {
@@ -36,7 +50,7 @@ export async function POST(req: NextRequest) {
           }
         } else {
           // Cleanup remotely
-          await execRemote(server, `rm -rf ~/bot_deployments/${name}`);
+          await execRemote(server as any, `rm -rf ~/bot_deployments/${name}`);
         }
         break;
       default:

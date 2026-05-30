@@ -1,24 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServers, saveServers, Server } from '@/lib/servers';
+import { getServerSession } from 'next-auth/next';
+import dbConnect from '@/lib/mongodb';
+import Server from '@/models/Server';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET() {
-  return NextResponse.json(getServers());
+  try {
+    const session = await getServerSession();
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    await dbConnect();
+    // In next-auth session might not have ID by default in some configs, 
+    // but our callback adds it. For simplicity, we can also query by email.
+    // However, our callback adds 'id' to the session.user.
+    const servers = await Server.find({ userId: (session.user as any).id });
+    
+    // Add a local server virtual if not present in DB for this user
+    const hasLocal = servers.some(s => s.isLocal);
+    const results = [...servers];
+    if (!hasLocal) {
+      results.unshift({
+        id: 'local',
+        name: 'Local Server',
+        host: 'localhost',
+        username: 'local',
+        isLocal: true,
+        _id: 'local'
+      });
+    }
+
+    return NextResponse.json(results);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const serverData = await req.json();
-    const servers = getServers();
-    
-    const newServer: Server = {
-      ...serverData,
-      id: uuidv4(),
-      isLocal: false
-    };
+    const session = await getServerSession();
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    servers.push(newServer);
-    saveServers(servers);
+    const serverData = await req.json();
+    await dbConnect();
+    
+    const newServer = await Server.create({
+      ...serverData,
+      userId: (session.user as any).id,
+      isLocal: false
+    });
     
     return NextResponse.json(newServer);
   } catch (error: any) {
@@ -27,16 +60,24 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get('id');
-  
-  if (!id || id === 'local') {
-    return NextResponse.json({ error: 'Cannot delete local server' }, { status: 400 });
-  }
+  try {
+    const session = await getServerSession();
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const servers = getServers();
-  const filtered = servers.filter(s => s.id !== id);
-  saveServers(filtered);
-  
-  return NextResponse.json({ message: 'Server deleted' });
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    
+    if (!id || id === 'local') {
+      return NextResponse.json({ error: 'Cannot delete local server' }, { status: 400 });
+    }
+
+    await dbConnect();
+    await Server.deleteOne({ _id: id, userId: (session.user as any).id });
+    
+    return NextResponse.json({ message: 'Server deleted' });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
