@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Define remote path
-    const remoteBaseDir = server.isLocal ? path.join(process.cwd(), 'deployments') : '~/bot_deployments';
+    const remoteBaseDir = server.isLocal ? path.join(process.cwd(), 'deployments') : '$HOME/bot_deployments';
     const deploymentDir = server.isLocal ? path.join(remoteBaseDir, botName) : `${remoteBaseDir}/${botName}`;
 
     // 1. Prepare commands

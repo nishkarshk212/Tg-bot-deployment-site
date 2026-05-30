@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
           }
         } else {
           // Cleanup remotely
-          await execRemote(server as any, `rm -rf ~/bot_deployments/${name}`);
+          await execRemote(server as any, `rm -rf "$HOME/bot_deployments/${name}"`);
         }
         break;
       default:
