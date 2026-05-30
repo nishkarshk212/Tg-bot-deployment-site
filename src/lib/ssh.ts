@@ -48,13 +48,17 @@ export async function execRemote(server: Server, command: string): Promise<{ std
           stdout += data.toString();
         }).stderr.on('data', (data: Buffer) => {
           stderr += data.toString();
-        }).on('close', (code: number) => {
+        }).on('close', (code: number, signal: string) => {
           conn.end();
           if (code === 0) {
             resolve({ stdout, stderr });
           } else {
-            const error = new Error(`Command failed with exit code ${code}\n${stderr}`);
+            const errorMsg = code !== undefined 
+              ? `Command failed with exit code ${code}` 
+              : `Command terminated by signal ${signal}`;
+            const error = new Error(`${errorMsg}\n${stderr || stdout}`);
             (error as any).code = code;
+            (error as any).signal = signal;
             (error as any).stderr = stderr;
             (error as any).stdout = stdout;
             reject(error);
@@ -62,7 +66,14 @@ export async function execRemote(server: Server, command: string): Promise<{ std
         });
       });
     }).on('error', (err) => {
-      reject(err);
+      console.error(`SSH Connection Error (${server.host}):`, err);
+      let message = err.message;
+      if ((err as any).code === 'ECONNREFUSED') message = 'Connection refused. Is the server IP correct and SSH port 22 open?';
+      if ((err as any).level === 'client-authentication') message = 'Authentication failed. Please check your SSH password.';
+      if ((err as any).code === 'ETIMEDOUT') message = 'Connection timed out. The server might be down or firewall is blocking port 22.';
+      
+      const error = new Error(`SSH Connection Failed: ${message}`);
+      reject(error);
     }).connect({
       host: server.host,
       port: 22,
