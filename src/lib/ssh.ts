@@ -17,6 +17,8 @@ export async function execRemote(server: Server, command: string) {
 
   // Use sshpass for password-based SSH
   // -o StrictHostKeyChecking=no to avoid interactive prompts for new hosts
-  const sshCmd = `sshpass -p "${server.password}" ssh -o StrictHostKeyChecking=no ${server.username}@${server.host} "${command}"`;
+  // Use bash -l -c to run the command in a login shell, ensuring PATH is set correctly
+  const escapedCommand = command.replace(/"/g, '\\"');
+  const sshCmd = `sshpass -p "${server.password}" ssh -o StrictHostKeyChecking=no ${server.username}@${server.host} "bash -l -c \\"${escapedCommand}\\""`;
   return execPromise(sshCmd);
 }

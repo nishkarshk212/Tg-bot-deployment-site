@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { 
   Plus, 
@@ -71,15 +71,30 @@ export default function Dashboard() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const isFetchingStatus = useRef(false);
+
   const fetchStatus = async () => {
+    if (isFetchingStatus.current) return;
+    isFetchingStatus.current = true;
     try {
       const res = await fetch("/api/status");
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("Status API error:", errorData);
+        return;
+      }
       const data = await res.json();
       if (Array.isArray(data)) {
         setBots(data);
       }
     } catch (error) {
       console.error("Failed to fetch status:", error);
+      // Check if it's a network error or something else
+      if (error instanceof TypeError && error.message === "Failed to fetch") {
+        console.warn("Possible connection issue or request blocked. Check if the server is running and reachable.");
+      }
+    } finally {
+      isFetchingStatus.current = false;
     }
   };
 

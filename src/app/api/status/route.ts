@@ -9,7 +9,28 @@ export async function GET(req: NextRequest) {
 
     for (const server of servers) {
       try {
-        const { stdout } = await execRemote(server, 'npx pm2 jlist');
+        // Try common ways to run pm2 jlist
+        let stdout = '';
+        try {
+          const res = await execRemote(server, 'npx pm2 jlist');
+          stdout = res.stdout;
+        } catch (e) {
+          try {
+            const res = await execRemote(server, 'pm2 jlist');
+            stdout = res.stdout;
+          } catch (e2) {
+             // Try to find pm2 path in common locations
+             const res = await execRemote(server, 'which pm2 || find /usr/local/bin /usr/bin /opt/node/bin -name pm2 -type f 2>/dev/null | head -n 1');
+             const pm2Path = res.stdout.trim();
+             if (pm2Path) {
+               const res2 = await execRemote(server, `${pm2Path} jlist`);
+               stdout = res2.stdout;
+             } else {
+               throw new Error('pm2 not found on remote server');
+             }
+           }
+        }
+
         // Check if stdout starts with JSON (skip PM2 banner if any)
         const jsonStart = stdout.indexOf('[');
         if (jsonStart === -1) continue;
