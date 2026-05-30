@@ -15,7 +15,10 @@ export async function GET(req: NextRequest) {
   try {
     const servers = getServers();
     const server = servers.find(s => s.id === serverId);
-    if (!server) throw new Error('Server not found');
+    if (!server) {
+      console.error(`Logs fetch failed: Server with ID "${serverId}" not found. Available servers: ${servers.map(s => s.id).join(', ')}`);
+      throw new Error(`Server not found (ID: ${serverId})`);
+    }
 
     const logCmd = isServerLog 
       ? 'npx pm2 logs --nostream --lines 200' 

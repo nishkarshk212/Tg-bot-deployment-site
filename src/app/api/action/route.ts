@@ -14,7 +14,10 @@ export async function POST(req: NextRequest) {
 
     const servers = getServers();
     const server = servers.find(s => s.id === serverId);
-    if (!server) throw new Error('Server not found');
+    if (!server) {
+      console.error(`Action failed: Server with ID "${serverId}" not found. Available servers: ${servers.map(s => s.id).join(', ')}`);
+      throw new Error(`Server not found (ID: ${serverId})`);
+    }
 
     switch (action) {
       case 'restart':

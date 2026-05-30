@@ -16,7 +16,8 @@ export async function POST(req: NextRequest) {
     const server = servers.find(s => s.id === serverId);
 
     if (!server) {
-      return NextResponse.json({ error: 'Server not found' }, { status: 404 });
+      console.error(`Deployment failed: Server with ID "${serverId}" not found. Available servers: ${servers.map(s => s.id).join(', ')}`);
+      return NextResponse.json({ error: `Server not found (ID: ${serverId})` }, { status: 404 });
     }
 
     if (server.isLocal && (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME)) {

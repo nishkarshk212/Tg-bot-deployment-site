@@ -15,17 +15,31 @@ export interface Server {
 }
 
 export function getServers(): Server[] {
+  const localServer: Server = { id: 'local', name: 'Local Server', host: 'localhost', username: 'local', isLocal: true };
+  
   try {
     if (!fs.existsSync(SERVERS_FILE)) {
-      const initialServers = [{ id: 'local', name: 'Local Server', host: 'localhost', username: 'local', isLocal: true }];
       // Only write if we can, or if we are in /tmp
-      fs.writeFileSync(SERVERS_FILE, JSON.stringify(initialServers, null, 2));
-      return initialServers;
+      fs.writeFileSync(SERVERS_FILE, JSON.stringify([localServer], null, 2));
+      return [localServer];
     }
-    return JSON.parse(fs.readFileSync(SERVERS_FILE, 'utf-8'));
+    
+    const content = fs.readFileSync(SERVERS_FILE, 'utf-8');
+    if (!content.trim()) {
+      return [localServer];
+    }
+    
+    const servers = JSON.parse(content);
+    
+    // Ensure local server is always present
+    if (Array.isArray(servers) && !servers.some(s => s.id === 'local')) {
+      return [localServer, ...servers];
+    }
+    
+    return Array.isArray(servers) ? servers : [localServer];
   } catch (error) {
     console.warn('Warning: Could not read/write servers.json. Using memory-only mode for this request.', error);
-    return [{ id: 'local', name: 'Local Server', host: 'localhost', username: 'local', isLocal: true }];
+    return [localServer];
   }
 }
 
