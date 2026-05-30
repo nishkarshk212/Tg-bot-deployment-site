@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Zap, Mail, Lock, ArrowRight } from "lucide-react";
+import { BackgroundRays } from "@/components/BackgroundRays";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -39,8 +40,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9] flex items-center justify-center p-6">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen text-[#c9d1d9] flex items-center justify-center p-6 relative">
+      <BackgroundRays />
+      <div className="max-w-md w-full relative z-10">
         <div className="text-center mb-10">
           <div className="inline-block bg-white/10 p-3 rounded-2xl border border-white/10 mb-6">
             <Zap className="text-blue-400" size={32} fill="currentColor" />
